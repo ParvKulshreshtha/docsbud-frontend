@@ -1,26 +1,67 @@
+@config "../tailwind.config.js";
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --page: 247 247 247;
+  --surface: 255 255 255;
+  --surface-2: 245 245 245;
+  --surface-muted: 247 247 247;
+  --border: 221 221 221;
+  --border-strong: 176 176 176;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --ink: 34 34 34;
+  --muted: 113 113 113;
+  --subtle: 176 176 176;
+
+  --accent: 255 90 95;
+  --accent-hover: 229 72 77;
+  --accent-soft: 255 235 236;
+  --accent-2: 0 132 137;
+  --accent-3: 255 180 185;
+
+  --on-accent: 255 255 255;
+  --success: 0 166 153;
+  --danger: 193 53 21;
+  --danger-soft: 255 240 237;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --page: 22 22 22;
+    --surface: 34 34 34;
+    --surface-2: 42 42 42;
+    --surface-muted: 48 48 48;
+    --border: 72 72 72;
+    --border-strong: 100 100 100;
+
+    --ink: 245 245 245;
+    --muted: 176 176 176;
+    --subtle: 130 130 130;
+
+    --accent: 255 106 111;
+    --accent-hover: 255 130 134;
+    --accent-soft: 60 32 34;
+    --accent-2: 0 166 153;
+    --accent-3: 255 192 197;
+
+    --on-accent: 255 255 255;
+    --success: 45 196 181;
+    --danger: 255 127 102;
+    --danger-soft: 55 28 24;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: rgb(var(--page));
+  color: rgb(var(--ink));
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
