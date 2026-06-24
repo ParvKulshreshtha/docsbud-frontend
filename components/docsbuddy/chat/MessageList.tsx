@@ -1,11 +1,11 @@
 import type { RefObject } from "react";
-import type { ChatMessage } from "../types";
+import type { ConversationMessage } from "../types";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 
 type MessageListProps = {
-  messages: ChatMessage[];
+  messages: ConversationMessage[];
   loading: boolean;
   hasFile: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;

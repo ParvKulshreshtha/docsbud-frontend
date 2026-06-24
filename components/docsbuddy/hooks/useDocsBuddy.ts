@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { getErrorMessage } from "../lib/errors";
-import type { ChatMessage, UploadedDocument } from "../types";
+import type { ChatMessage, ConversationMessage, UploadedDocument } from "../types";
 
 export function useDocsBuddy() {
   const [file, setFile] = useState<File | null>(null);
@@ -15,7 +15,8 @@ export function useDocsBuddy() {
   const [uploaded, setUploaded] = useState<UploadedDocument | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [history, setHistory] = useState<ChatMessage[]>([]);
   const [error, setError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -50,11 +51,17 @@ export function useDocsBuddy() {
     updateScrollState();
   }, [messages.length, loading]);
 
+  const clearSession = () => {
+    setHistory([]);
+    setMessages([]);
+  };
+
   const uploadPdf = async (selectedFile: File) => {
     try {
       setUploadLoading(true);
       setError("");
       setUploaded(null);
+      clearSession();
 
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -110,7 +117,10 @@ export function useDocsBuddy() {
       setError("");
       setQuestion("");
 
-      const userMsg: ChatMessage = { role: "user", content: currentQuestion };
+      const userMsg: ConversationMessage = {
+        role: "user",
+        content: currentQuestion,
+      };
       forceAutoScrollRef.current = true;
       setMessages((prev) => [...prev, userMsg]);
 
@@ -118,19 +128,26 @@ export function useDocsBuddy() {
         question: currentQuestion,
         userId: "user-123",
         documentId: activeDocumentId,
+        history: history.slice(-2),
       });
+
+      const answer = String(res.data?.answer ?? "");
 
       const sources = Array.isArray(res.data?.sources)
         ? (res.data.sources as unknown[]).map((s) => String(s))
         : undefined;
 
-      const aiMsg: ChatMessage = {
+      const aiMsg: ConversationMessage = {
         role: "assistant",
-        content: String(res.data?.answer ?? ""),
+        content: answer,
         sources,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+      setHistory((prev) => [
+        ...prev,
+        { question: currentQuestion, answer },
+      ]);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "Failed to get answer");
     } finally {
@@ -148,15 +165,24 @@ export function useDocsBuddy() {
       setSummaryLoading(true);
       setError("");
 
+      const summaryQuestion = "Summarize this document in simple points";
+
       const res = await axios.post("http://localhost:8001/chat/ask", {
-        question: "Summarize this document in simple points",
+        question: summaryQuestion,
         userId: "demo-user",
         documentId: activeDocumentId,
+        history: history.slice(-2),
       });
+
+      const answer = String(res.data?.answer ?? "");
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: String(res.data?.answer ?? "") },
+        { role: "assistant", content: answer },
+      ]);
+      setHistory((prev) => [
+        ...prev,
+        { question: summaryQuestion, answer },
       ]);
     } catch {
       setError("Summary failed");

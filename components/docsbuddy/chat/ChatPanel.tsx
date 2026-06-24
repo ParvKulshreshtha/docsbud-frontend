@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { ChatMessage, UploadedDocument } from "../types";
+import type { ConversationMessage, UploadedDocument } from "../types";
 import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
@@ -8,7 +8,7 @@ import { ScrollToBottomButton } from "./ScrollToBottomButton";
 type ChatPanelProps = {
   file: File | null;
   uploaded: UploadedDocument | null;
-  messages: ChatMessage[];
+  messages: ConversationMessage[];
   question: string;
   loading: boolean;
   showScrollToBottom: boolean;

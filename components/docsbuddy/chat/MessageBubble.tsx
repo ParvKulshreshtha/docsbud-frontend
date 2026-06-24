@@ -1,8 +1,8 @@
-import type { ChatMessage } from "../types";
+import type { ConversationMessage } from "../types";
 import { MessageSources } from "./MessageSources";
 
 type MessageBubbleProps = {
-  message: ChatMessage;
+  message: ConversationMessage;
 };
 
 export function MessageBubble({ message }: MessageBubbleProps) {
