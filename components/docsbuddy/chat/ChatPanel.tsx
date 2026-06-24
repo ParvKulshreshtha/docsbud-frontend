@@ -11,6 +11,7 @@ type ChatPanelProps = {
   messages: ConversationMessage[];
   question: string;
   loading: boolean;
+  summaryLoading: boolean;
   showScrollToBottom: boolean;
   chatScrollRef: RefObject<HTMLDivElement | null>;
   onOpenSidebar: () => void;
@@ -26,6 +27,7 @@ export function ChatPanel({
   messages,
   question,
   loading,
+  summaryLoading,
   showScrollToBottom,
   chatScrollRef,
   onOpenSidebar,
@@ -45,6 +47,7 @@ export function ChatPanel({
       <MessageList
         messages={messages}
         loading={loading}
+        summaryLoading={summaryLoading}
         hasFile={!!file}
         scrollRef={chatScrollRef}
         onScroll={onScroll}
@@ -56,7 +59,7 @@ export function ChatPanel({
 
       <ChatInput
         value={question}
-        loading={loading}
+        loading={loading || summaryLoading}
         onChange={onQuestionChange}
         onSubmit={onAsk}
       />

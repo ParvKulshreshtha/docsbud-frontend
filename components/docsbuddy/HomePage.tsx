@@ -59,6 +59,7 @@ export function HomePage() {
         messages={messages}
         question={question}
         loading={loading}
+        summaryLoading={summaryLoading}
         showScrollToBottom={showScrollToBottom}
         chatScrollRef={chatScrollRef}
         onOpenSidebar={() => setSidebarOpen(true)}

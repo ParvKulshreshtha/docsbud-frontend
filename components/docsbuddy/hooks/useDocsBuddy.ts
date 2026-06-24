@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { getErrorMessage } from "../lib/errors";
-import type { ChatMessage, ConversationMessage, UploadedDocument } from "../types";
+import { apiUrl } from "../lib/api";
+import { streamChatAsk } from "../lib/sse";
+import type {
+  ChatHistoryEntry,
+  ConversationMessage,
+  UploadedDocument,
+} from "../types";
 
 export function useDocsBuddy() {
   const [file, setFile] = useState<File | null>(null);
@@ -16,13 +22,18 @@ export function useDocsBuddy() {
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [history, setHistory] = useState<ChatHistoryEntry[]>([]);
   const [error, setError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const isAtBottomRef = useRef(true);
   const forceAutoScrollRef = useRef(false);
+  const historyRef = useRef(history);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   const activeDocumentId = useMemo(() => {
     return uploaded?.documentId ?? null;
@@ -49,7 +60,7 @@ export function useDocsBuddy() {
       forceAutoScrollRef.current = false;
     }
     updateScrollState();
-  }, [messages.length, loading]);
+  }, [messages, loading]);
 
   const clearSession = () => {
     setHistory([]);
@@ -67,15 +78,10 @@ export function useDocsBuddy() {
       formData.append("file", selectedFile);
 
       const res = await axios.post(
-        "http://localhost:8001/document/upload",
+        apiUrl("/document/upload"),
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
-
-      const chunksCount =
-        res.data?.chunksCount ??
-        res.data?.chunks_count ??
-        res.data?.chunks?.length;
 
       const documentId =
         res.data?.documentId ??
@@ -85,7 +91,6 @@ export function useDocsBuddy() {
 
       setUploaded({
         fileName: selectedFile.name,
-        chunksCount: typeof chunksCount === "number" ? chunksCount : undefined,
         documentId:
           typeof documentId === "string" && documentId.length > 0
             ? documentId
@@ -108,51 +113,117 @@ export function useDocsBuddy() {
     await uploadPdf(pickedFile);
   };
 
+  const streamQuestion = async (
+    currentQuestion: string,
+    userId: string,
+    options: {
+      showUserMessage: boolean;
+      setStreaming: (streaming: boolean) => void;
+    }
+  ) => {
+    const assistantIndexRef = { current: -1 };
+    let streamedAnswer = "";
+
+    options.setStreaming(true);
+    setError("");
+
+    if (options.showUserMessage) {
+      forceAutoScrollRef.current = true;
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: currentQuestion },
+      ]);
+    }
+
+    try {
+      await streamChatAsk(
+        {
+          question: currentQuestion,
+          userId,
+          documentId: activeDocumentId,
+          history: historyRef.current.slice(-2),
+        },
+        {
+          onMetadata: () => {
+            options.setStreaming(false);
+            setMessages((prev) => {
+              assistantIndexRef.current = prev.length;
+              return [
+                ...prev,
+                {
+                  role: "assistant",
+                  content: "",
+                },
+              ];
+            });
+          },
+          onToken: (token) => {
+            streamedAnswer += token;
+            setMessages((prev) => {
+              const idx = assistantIndexRef.current;
+              if (idx < 0 || idx >= prev.length) return prev;
+
+              const next = [...prev];
+              const current = next[idx];
+              next[idx] = {
+                ...current,
+                content: current.content + token,
+              };
+              return next;
+            });
+          },
+          onDone: (answer) => {
+            const finalAnswer = answer || streamedAnswer;
+            setMessages((prev) => {
+              const idx = assistantIndexRef.current;
+              if (idx < 0 || idx >= prev.length) return prev;
+
+              const next = [...prev];
+              next[idx] = { ...next[idx], content: finalAnswer };
+              return next;
+            });
+            setHistory((prev) => [
+              ...prev,
+              { question: currentQuestion, answer: finalAnswer },
+            ]);
+          },
+          onError: (message) => {
+            setError(message);
+            setMessages((prev) => {
+              const idx = assistantIndexRef.current;
+              if (idx < 0 || idx >= prev.length) return prev;
+              if (!prev[idx].content) {
+                return prev.filter((_, i) => i !== idx);
+              }
+              return prev;
+            });
+          },
+        }
+      );
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Failed to get answer");
+      setMessages((prev) => {
+        const idx = assistantIndexRef.current;
+        if (idx < 0 || idx >= prev.length) return prev;
+        if (!prev[idx].content) {
+          return prev.filter((_, i) => i !== idx);
+        }
+        return prev;
+      });
+    } finally {
+      options.setStreaming(false);
+    }
+  };
+
   const askQuestion = async () => {
     const currentQuestion = question.trim();
     if (!currentQuestion) return;
 
-    try {
-      setLoading(true);
-      setError("");
-      setQuestion("");
-
-      const userMsg: ConversationMessage = {
-        role: "user",
-        content: currentQuestion,
-      };
-      forceAutoScrollRef.current = true;
-      setMessages((prev) => [...prev, userMsg]);
-
-      const res = await axios.post("http://localhost:8001/chat/ask", {
-        question: currentQuestion,
-        userId: "user-123",
-        documentId: activeDocumentId,
-        history: history.slice(-2),
-      });
-
-      const answer = String(res.data?.answer ?? "");
-
-      const sources = Array.isArray(res.data?.sources)
-        ? (res.data.sources as unknown[]).map((s) => String(s))
-        : undefined;
-
-      const aiMsg: ConversationMessage = {
-        role: "assistant",
-        content: answer,
-        sources,
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-      setHistory((prev) => [
-        ...prev,
-        { question: currentQuestion, answer },
-      ]);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err) || "Failed to get answer");
-    } finally {
-      setLoading(false);
-    }
+    setQuestion("");
+    await streamQuestion(currentQuestion, "user-123", {
+      showUserMessage: true,
+      setStreaming: setLoading,
+    });
   };
 
   const summarizePdf = async () => {
@@ -161,34 +232,14 @@ export function useDocsBuddy() {
       return;
     }
 
-    try {
-      setSummaryLoading(true);
-      setError("");
-
-      const summaryQuestion = "Summarize this document in simple points";
-
-      const res = await axios.post("http://localhost:8001/chat/ask", {
-        question: summaryQuestion,
-        userId: "demo-user",
-        documentId: activeDocumentId,
-        history: history.slice(-2),
-      });
-
-      const answer = String(res.data?.answer ?? "");
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: answer },
-      ]);
-      setHistory((prev) => [
-        ...prev,
-        { question: summaryQuestion, answer },
-      ]);
-    } catch {
-      setError("Summary failed");
-    } finally {
-      setSummaryLoading(false);
-    }
+    await streamQuestion(
+      "Summarize this document in simple points",
+      "demo-user",
+      {
+        showUserMessage: false,
+        setStreaming: setSummaryLoading,
+      }
+    );
   };
 
   const scrollToBottom = () => {

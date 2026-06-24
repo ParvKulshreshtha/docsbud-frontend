@@ -44,7 +44,7 @@ export function SidebarBody({
       />
 
       {file && <FileChip file={file} />}
-      {uploaded && <UploadStatus uploaded={uploaded} />}
+      {uploaded && <UploadStatus />}
       {error && <ErrorBanner message={error} />}
 
       <SummarizeButton

@@ -27,9 +27,7 @@ export function ChatHeader({ file, uploaded, onOpenSidebar }: ChatHeaderProps) {
       </div>
 
       {uploaded && (
-        <span className="ml-auto shrink-0 text-[11px] text-muted">
-          {uploaded.chunksCount ? `${uploaded.chunksCount} chunks` : "ready"}
-        </span>
+        <span className="ml-auto shrink-0 text-[11px] text-muted">ready</span>
       )}
     </header>
   );

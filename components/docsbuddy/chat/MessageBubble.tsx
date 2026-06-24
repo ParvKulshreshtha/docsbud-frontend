@@ -1,5 +1,4 @@
 import type { ConversationMessage } from "../types";
-import { MessageSources } from "./MessageSources";
 
 type MessageBubbleProps = {
   message: ConversationMessage;
@@ -18,9 +17,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       ].join(" ")}
     >
       <p className="whitespace-pre-wrap">{message.content}</p>
-      {message.sources && message.sources.length > 0 && (
-        <MessageSources sources={message.sources} />
-      )}
     </div>
   );
 }
